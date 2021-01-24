@@ -15,6 +15,35 @@ a = e.connect()
 print("Setup was successful, entering loop")
 
 
+
+# The idea for this strategy is connected to a 'minimum profit margin curve':
+min_pm_curve = [(0, 0.15), (200, 0.25), (300, 0.35), (400, 0.45), (450, 0.65)]
+
+# Because of the limits for long and short buying stocks (up to 500), the algorithm needs to
+# make trades which will both earn money instantly, and leave some limit for the possibility
+# of even larger profits. Therefore, the minimum profit margin at which the algorithm will trade
+# is related to the stock purchasing limits it has left.
+#
+# The minimum profit margin vs our position on the stock to be bought is presented below:
+#
+#   0.7                                                                 *******
+#   0.6                                                                 *
+#   0.5                                                          ********
+#   0.4                                               ************
+#   0.3                                   *************
+#   0.2              **********************
+#   0.1              *
+#   0.0   ************
+#       -100 ------- 0 ------ 100 ------- 200 ------- 300 ------ 400 -------- 500
+
+# It can be seen that the closer we are to the limit, the higher profit margin we require,
+# in order to avoid situations where we exhaust the limit and there is still possibility
+# to trade at large profits.
+# Additionally, when we are short on the stock that we are considering buying, the minimum pm
+# is zero, in order to 'zero out' our short position with the long position on the other stock
+
+
+
 # instr is 0 when buying PHA and selling PHB, 1 otherwise
 # books is [book_a, book_b]
 # position is (pha, phb)
@@ -28,16 +57,20 @@ def try_to_trade(instr, books, position):
         bid = books[sellside].bids[0]
         ask = books[buyside].asks[0]
         
-        # if we have too big imbalance, it's okay to trade 
-        # at 0 profit to reduce the imbalance
-        need_balancing = position[buyside] < -50 or position[sellside] > 50
+        # get the appriopriate min_pm from the curve. The starting value of
+        # min_pm = -0.05 means that we will only trade for pm of 0.0 or more
+        min_pm = -0.05
+        for boundary, pm in min_pm_curve:
+            if (position[buyside] > boundary) or (position[sellside] < -boundary):
+                min_pm = pm
+            else:
+                break
         
-        min_pm = -0.01 if need_balancing else 0.01
-        
-        # check if the trade will be profitable 
+        # check the achievable profit margin
         pm = bid.price - ask.price
         if (pm > min_pm):
-            volume = min(min(bid.volume, ask.volume), min(500-position[buyside], position[sellside]+500))
+            # essentially, do not trade so much as to exceed limits either on buyside or sellside
+            volume = min((bid.volume, ask.volume, 500-position[buyside], position[sellside]+500))
             if volume < 1:
                 return
             
@@ -45,7 +78,8 @@ def try_to_trade(instr, books, position):
             # more on one side to bring it closer to zero.
             # Additionally, make the trade bringing total_position
             # closer to zero first, as the first operation has
-            # higher chance of success.
+            # higher chance of success,l so this order of operations
+            # will on average reduce the abs(net_position).
             net_position = position[0] + position[1]
             if net_position >= 0:
                 if (bid.volume > volume):
@@ -75,6 +109,8 @@ def summarize_trades(trades):
     for instr, net in trades_sum.items():
         if (net != [0,0]):  
             print(timestamp() + f"{'BOUGHT' if net[1]>0 else 'SOLD  '} {abs(net[1])} lots of {'PHA' if instr==pha else 'PHB'} for {-(net[0]/net[1]):8.2f}")
+    
+    # this function could also export statistics and data for further analysis if it were nexessary
             
 last_trades_update = time.time()
 last_position = (0, 0)
@@ -102,3 +138,5 @@ while not done:
         
     except KeyboardInterrupt:
         done = True
+    except Exception as exc:
+        print(timestamp() + "error: " + str(exc))

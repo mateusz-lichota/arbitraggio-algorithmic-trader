@@ -4,6 +4,6 @@
  </div>
  <div>
  <h1>Arbitragg.io</h1>
- <p>This is a paragraph.</p>
+ <p>A simple, fast and risk averse dual listing hedge trading program.</p>
  </div>
 </div>

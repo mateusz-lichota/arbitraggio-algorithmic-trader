@@ -4,6 +4,6 @@
  </div>
  <div>
  <h1>Arbitragg.io</h1>
- <p>A simple, fast and risk averse dual listing hedge trading program.</p>
+ <p>A high-speed algorithmic trader used to achieve the 2nd largest profit in a live market simulation during the HEX Cambridge hackathon.</p>
  </div>
 </div>
